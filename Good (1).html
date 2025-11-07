@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Hardware Inventory</title>
+<style>
+:root{--accent:#2b6cb0;--muted:#6b7280;--low:#fff7ed;--high:#d1fae5;--header:#f3f4f6;--normal:#ffffff;}
+body{font-family:Inter,system-ui,Segoe UI,Roboto,"Helvetica Neue",Arial;margin:0;background:#f7fafc;color:#0f172a}
+.container{max-width:1000px;margin:20px auto;padding:10px}
+header{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;background:var(--header);padding:10px;border-radius:10px}
+h1{margin:0;font-size:22px;color:var(--accent)}
+.card{background:white;border-radius:12px;box-shadow:0 6px 18px rgba(15,23,42,0.06);padding:16px;margin-top:16px}
+form.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+label{font-size:12px;color:var(--muted)}
+input[type=text],input[type=number],select{width:100%;padding:8px;border:1px solid #e6edf3;border-radius:8px}
+button{background:var(--accent);color:white;border:0;padding:8px 12px;border-radius:8px;cursor:pointer;font-size:13px}
+table{width:100%;border-collapse:collapse;margin-top:12px;font-size:14px}
+th,td{padding:8px;border-bottom:1px solid #eef2f6;text-align:left}
+th{font-size:13px;color:var(--muted);background:var(--header)}
+.actions button{margin-right:4px;background:#f1f5f9;color:#0f172a;padding:5px 8px;border-radius:6px;font-size:12px}
+.low{background:var(--low);}
+.high{background:var(--high);}
+.normal{background:var(--normal);}
+.controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px}
+.search{padding:6px;border-radius:8px;border:1px solid #e6edf3;font-size:13px}
+.small{padding:6px 8px;font-size:13px}
+footer{margin-top:12px;color:var(--muted);font-size:13px}
+.thumb{width:40px;height:40px;border-radius:4px;object-fit:cover}
+@media(max-width:900px){form.grid{grid-template-columns:1fr}.controls{flex-direction:column;align-items:stretch}}
+</style>
+</head>
+<body>
+<div class="container">
+<header>
+<h1>Hardware Inventory</h1>
+<div style="text-align:right;color:var(--muted);font-size:13px">Mobile-friendly, local storage</div>
+</header>
+
+<!-- Dashboard Section -->
+<div class="card" id="dashboard" style="display:flex;gap:10px;flex-wrap:wrap;justify-content:space-around;text-align:center;">
+  <div style="background:#3b82f6;color:white;padding:12px;border-radius:12px;flex:1;min-width:120px;">
+    <strong>Total Items</strong>
+    <div id="totalItems">0</div>
+  </div>
+  <div style="background:#10b981;color:white;padding:12px;border-radius:12px;flex:1;min-width:120px;">
+    <strong>Total Quantity</strong>
+    <div id="totalQty">0</div>
+  </div>
+  <div style="background:#f59e0b;color:white;padding:12px;border-radius:12px;flex:1;min-width:120px;">
+    <strong>Total Value (₹)</strong>
+    <div id="totalValue">0.00</div>
+  </div>
+</div>
+
+<div class="card">
+<strong>Add / Update Item</strong>
+<form id="itemForm" class="grid" onsubmit="return false">
+<div><label>Name</label><input id="name" type="text" placeholder="e.g. Hammer" required></div>
+<div><label>Category</label><input id="category" type="text" placeholder="e.g. Tools"></div>
+<div><label>Quantity</label><input id="qty" type="number" min="0" value="1"></div>
+<div><label>Price (₹)</label><input id="price" type="number" min="0" step="0.01" value="0"></div>
+<div><label>Supplier</label><input id="supplier" type="text" placeholder="Supplier name"></div>
+<div><label>Contact</label><input id="contact" type="text" placeholder="Supplier contact"></div>
+<div><label>Image (optional)</label><input id="img" type="file" accept="image/*"></div>
+
+<div style="grid-column:1/3;display:flex;gap:8px;align-items:center;margin-top:6px">
+<button id="addBtn" class="small">Add Item</button>
+<button id="updateBtn" class="small" style="display:none;background:#059669">Update Item</button>
+<button id="clearBtn" type="button" class="small" style="background:#eab308">Clear Form</button>
+</div>
+
+<div style="grid-column:1/3;display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:4px">
+<input id="fileImport" type="file" accept=".csv">
+<button id="exportCsv" class="small" type="button">Export CSV</button>
+<button id="invoice" class="small" type="button" style="background:#64748b">Download Invoice</button>
+<button id="print" class="small" type="button" style="background:#10b981">Print</button>
+<button id="seed" class="small" type="button" style="background:#64748b">Load Sample</button>
+</div>
+</form>
+</div>
+
+<div class="card">
+<div class="controls">
+<input id="search" class="search" placeholder="Search name/category">
+<select id="filterCat"><option value="">All categories</option></select>
+<select id="sortBy">
+<option value="name">Sort: Name</option>
+<option value="qty_desc">Sort: Quantity desc</option>
+<option value="qty_asc">Sort: Quantity asc</option>
+<option value="price_desc">Sort: Price desc</option>
+<option value="price_asc">Sort: Price asc</option>
+</select>
+<button id="clearAll" class="small" style="background:#ef4444">Clear All Data</button>
+</div>
+
+<table id="itemsTable">
+<thead>
+<tr>
+<th>#</th>
+<th>Image</th>
+<th>Name</th>
+<th>Category</th>
+<th>Quantity</th>
+<th>Price (₹)</th>
+<th>Total (₹)</th>
+<th>Supplier</th>
+<th>Contact</th>
+<th>Actions</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+<footer>Tip: Click "Load Sample" to try. CSV import headers: name,category,qty,price,supplier,contact</footer>
+</div>
+</div>
+
+<script>
+const STORAGE_KEY='hardwareInventory_mobile';
+let items=[], editIndex=-1;
+
+const nameEl=document.getElementById('name');
+const catEl=document.getElementById('category');
+const qtyEl=document.getElementById('qty');
+const priceEl=document.getElementById('price');
+const supplierEl=document.getElementById('supplier');
+const contactEl=document.getElementById('contact');
+const imgEl=document.getElementById('img');
+const addBtn=document.getElementById('addBtn');
+const updateBtn=document.getElementById('updateBtn');
+const itemsTable=document.querySelector('#itemsTable tbody');
+const searchEl=document.getElementById('search');
+const filterCat=document.getElementById('filterCat');
+const sortBy=document.getElementById('sortBy');
+const exportCsv=document.getElementById('exportCsv');
+const fileImport=document.getElementById('fileImport');
+const clearAll=document.getElementById('clearAll');
+const seedBtn=document.getElementById('seed');
+const invoiceBtn=document.getElementById('invoice');
+const printBtn=document.getElementById('print');
+
+const totalItemsEl=document.getElementById('totalItems');
+const totalQtyEl=document.getElementById('totalQty');
+const totalValueEl=document.getElementById('totalValue');
+
+function save(){localStorage.setItem(STORAGE_KEY,JSON.stringify(items));}
+function load(){const raw=localStorage.getItem(STORAGE_KEY);items=raw?JSON.parse(raw):[];}
+function esc(s){return String(s).replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function fm(n){return Number(n).toFixed(2);}
+function clearForm(){nameEl.value='';catEl.value='';qtyEl.value=1;priceEl.value=0;supplierEl.value='';contactEl.value='';imgEl.value='';}
+function cancelEdit(){editIndex=-1;addBtn.style.display='inline-block';updateBtn.style.display='none';clearForm();}
+
+function readImage(input,cb){if(input.files&&input.files[0]){const r=new FileReader();r.onload=e=>cb(e.target.result);r.readAsDataURL(input.files[0]);}else cb(null);}
+
+function updateDashboard(){
+ let totalQty=0,totalValue=0;
+ items.forEach(it=>{totalQty+=it.qty;totalValue+=it.qty*it.price;});
+ totalItemsEl.textContent=items.length;
+ totalQtyEl.textContent=totalQty;
+ totalValueEl.textContent=totalValue.toFixed(2);
+}
+
+function render(){
+ itemsTable.innerHTML='';
+ const q=searchEl.value.trim().toLowerCase();
+ let filtered=items.filter(it=>{
+   if(filterCat.value&&it.category!==filterCat.value)return false;
+   if(!q)return true;
+   return it.name.toLowerCase().includes(q)||(it.category||'').toLowerCase().includes(q);
+ });
+ switch(sortBy.value){
+  case'qty_desc':filtered.sort((a,b)=>b.qty-a.qty);break;
+  case'qty_asc':filtered.sort((a,b)=>a.qty-b.qty);break;
+  case'price_desc':filtered.sort((a,b)=>b.price-a.price);break;
+  case'price_asc':filtered.sort((a,b)=>a.price-b.price);break;
+  default:filtered.sort((a,b)=>a.name.localeCompare(b.name));
+ }
+ filtered.forEach((it,i)=>{
+  const tr=document.createElement('tr');
+  if(it.qty<=2)tr.className='low';else if(it.qty>=10)tr.className='high';else tr.className='normal';
+  tr.innerHTML=`<td>${i+1}</td>
+  <td>${it.image?'<img src="'+it.image+'" class="thumb">':''}</td>
+  <td>${esc(it.name)}</td>
+  <td>${esc(it.category||'—')}</td>
+  <td><button onclick="decrease(${items.indexOf(it)})" class="small">-</button> ${it.qty} <button onclick="increase(${items.indexOf(it)})" class="small">+</button></td>
+  <td>${fm(it.price)}</td>
+  <td>${fm(it.qty*it.price)}</td>
+  <td>${esc(it.supplier||'—')}</td>
+  <td>${esc(it.contact||'—')}</td>
+  <td class="actions"><button onclick="editItem(${items.indexOf(it)})">Edit</button><button onclick="deleteItem(${items.indexOf(it)})">Del</button></td>`;
+  itemsTable.appendChild(tr);
+ });
+ populateCategoryFilter();
+ updateDashboard();
+}
+
+function populateCategoryFilter(){
+ const cats=Array.from(new Set(items.map(i=>i.category).filter(Boolean))).sort();
+ const current=filterCat.value;
+ filterCat.innerHTML='<option value="">All categories</option>'+cats.map(c=>`<option value="${c}">${c}</option>`).join('');
+ if(cats.includes(current))filterCat.value=current;else filterCat.value='';
+}
+
+function editItem(i){const it=items[i];editIndex=i;nameEl.value=it.name;catEl.value=it.category||'';qtyEl.value=it.qty;priceEl.value=it.price;supplierEl.value=it.supplier||'';contactEl.value=it.contact||'';addBtn.style.display='none';updateBtn.style.display='inline-block';}
+function deleteItem(i){if(confirm('Delete this item?')){items.splice(i,1);save();render();}}
+function increase(i){items[i].qty+=1;save();render();}
+function decrease(i){items[i].qty=Math.max(0,items[i].qty-1);save();render();}
+
+addBtn.addEventListener('click',()=>{
+ const name=nameEl.value.trim();if(!name){alert('Name required');return;}
+ readImage(imgEl,img=>{
+  items.push({name,category:catEl.value.trim(),qty:Math.max(0,Number(qtyEl.value)),price:Math.max(0,Number(priceEl.value)),supplier:supplierEl.value.trim(),contact:contactEl.value.trim(),image:img});
+  save();render();clearForm();
+ });
+});
+
+updateBtn.addEventListener('click',()=>{
+ if(editIndex<0)return;
+ readImage(imgEl,img=>{
+  const it=items[editIndex];
+  it.name=nameEl.value.trim();it.category=catEl.value.trim();it.qty=Math.max(0,Number(qtyEl.value));it.price=Math.max(0,Number(priceEl.value));
+  it.supplier=supplierEl.value.trim();it.contact=contactEl.value.trim();if(img)it.image=img;
+  save();render();cancelEdit();
+ });
+});
+
+exportCsv.addEventListener('click',()=>{
+ if(!items.length){alert('No data');return;}
+ let csv='name,category,qty,price,supplier,contact\n';
+ items.forEach(it=>csv+=`"${it.name}","${it.category||''}",${it.qty},${it.price},"${it.supplier||''}","${it.contact||''}"\n`);
+ const blob=new Blob([csv],{type:'text/csv'});const url=URL.createObjectURL(blob);
+ const a=document.createElement('a');a.href=url;a.download='hardware_inventory.csv';a.click();URL.revokeObjectURL(url);
+});
+
+fileImport.addEventListener('change',e=>{
+ const f=e.target.files[0];if(!f)return;
+ const r=new FileReader();
+ r.onload=e=>{
+  const lines=e.target.result.split(/\r?\n/).filter(Boolean);
+  lines.forEach((l,i)=>{if(i===0)return;const [name,category,qty,price,supplier,contact]=l.split(',');
+   items.push({name:name.replace(/"/g,''),category:category.replace(/"/g,''),qty:Number(qty),price:Number(price),supplier:supplier.replace(/"/g,''),contact:contact.replace(/"/g,''),image:null});
+  });
+  save();render();
+ };
+ r.readAsText(f);
+});
+
+clearAll.addEventListener('click',()=>{if(confirm('Delete all items?')){items=[];save();render();}});
+seedBtn.addEventListener('click',()=>{items=[{name:'Hammer',category:'Tools',qty:5,price:250,supplier:'ABC Hardware',contact:'12345',image:null},{name:'Screwdriver',category:'Tools',qty:12,price:150,supplier:'XYZ Tools',contact:'98765',image:null},{name:'Drill',category:'Electric',qty:2,price:2500,supplier:'Electro',contact:'56789',image:null}];save();render();});
+
+invoiceBtn.addEventListener('click',()=>{
+ if(!items.length){alert('No items');return;}
+ let html='<h2>Hardware Inventory Invoice</h2><p>Date: '+new Date().toLocaleString()+'</p>';
+ html+='<table border="1" cellspacing="0" cellpadding="6"><tr><th>#</th><th>Name</th><th>Qty</th><th>Price</th><th>Total</th></tr>';
+ let total=0;
+ items.forEach((it,i)=>{const t=it.qty*it.price;total+=t;html+=`<tr><td>${i+1}</td><td>${esc(it.name)}</td><td>${it.qty}</td><td>${fm(it.price)}</td><td>${fm(t)}</td></tr>`});
+ html+=`<tr><td colspan="4"><strong>Grand Total</strong></td><td>${fm(total)}</td></tr></table>`;
+ const blob=new Blob([html],{type:'text/html'});const url=URL.createObjectURL(blob);
+ const a=document.createElement('a');a.href=url;a.download='invoice.html';a.click();URL.revokeObjectURL(url);
+});
+
+printBtn.addEventListener('click',()=>{window.print();});
+searchEl.addEventListener('input',render);
+filterCat.addEventListener('change',render);
+sortBy.addEventListener('change',render);
+load();render();
+</script>
+</body>
+</html>
